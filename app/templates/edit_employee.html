@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if employee %}Редактирование{% else %}Добавление{% endif %} сотрудника</h1>
+<form method="post">
+    <div class="mb-3">
+        <label for="personal_number" class="form-label">Табельный номер</label>
+        <input type="text" class="form-control" id="personal_number" name="personal_number" 
+            value="{{ employee.personal_number if employee else '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="full_name" class="form-label">ФИО *</label>
+        <input type="text" class="form-control" id="full_name" name="full_name" value="{{ employee.full_name if employee else '' }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="hire_date" class="form-label">Дата приёма</label>
+        <input type="date" class="form-control" id="hire_date" name="hire_date" value="{{ employee.hire_date.strftime('%Y-%m-%d') if employee and employee.hire_date else '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="fire_date" class="form-label">Дата увольнения</label>
+        <input type="date" class="form-control" id="fire_date" name="fire_date" value="{{ employee.fire_date.strftime('%Y-%m-%d') if employee and employee.fire_date else '' }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <a href="{{ url_for('routes.employees') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

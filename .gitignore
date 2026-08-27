@@ -1,0 +1,95 @@
+# =====================
+# Python
+# =====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# =====================
+# Virtual Environment
+# =====================
+venv/
+.venv/
+virtualenv/
+env/
+
+# =====================
+# IDE / Editor
+# =====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# =====================
+# Flask / Django
+# =====================
+instance/
+*.db
+*.sqlite
+*.sqlite3
+migrations/
+.env
+.flaskenv
+
+# =====================
+# Logs
+# =====================
+*.log
+logs/
+*.log.*
+employee_processing.log
+
+# =====================
+# Project-specific
+# =====================
+# Данные (временные CSV/JSON)
+data/
+# Архивированные файлы
+archive/
+# Заглушка для сети
+network_stub/
+# Отчёты о расхождениях
+missing_*.json
+
+# =====================
+# Excel файлы (только один раз для импорта)
+pass.xlsx
+*.xlsx
+*.xls
+
+# =====================
+# Временные файлы
+# =====================
+*.tmp
+*.temp
+*.bak
+*.backup
+.DS_Store
+Thumbs.db
+
+# =====================
+# Тесты и покрытие
+# =====================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# =====================
+# Докер (если будете использовать)
+# =====================
+*.pid
+docker-compose.override.yml

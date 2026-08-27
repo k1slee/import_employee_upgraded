@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Загрузка нового Excel-файла</h2>
+<form method="post" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label for="file" class="form-label">Выберите файл .xlsx</label>
+        <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Загрузить</button>
+    <a href="{{ url_for('routes.dashboard') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

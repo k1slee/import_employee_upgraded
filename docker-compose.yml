@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: employee_web
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./data:/app/data
+      - ./archive:/app/archive
+      - ./logs:/app/logs
+      - ./instance:/app/instance
+      - ./network_stub:/app/network_stub
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///instance/app.db
+    restart: unless-stopped
