@@ -17,9 +17,16 @@ INPUT_COLUMNS_MAPPING = {
     'Card': 'card',
 }
 OUTPUT_COLUMNS = [
-    'personal_number', 'last_name', 'first_name', 'middle_name',
-    'department', 'card_track_two', 'country', 'nick_name'
+    'matchcode',
+    'first_name',
+    'name',
+    'country',
+    'department',
+    'card_track_two',
+    'patronym',
+    'nick_name'
 ]
+
 EXCLUDED_DEPARTMENTS = ['Уволенные', 'Заблокированные']
 SPECIAL_DEPARTMENT = 'Принятые'
 INVALID_PERSONAL_NUMBERS = ['0000', '00000']
@@ -180,47 +187,34 @@ def process_workers_data(
     return json_dict
 
 def process_accepted_row(row: Dict, writer):
-    """Обрабатывает строку с департаментом 'Принятые'."""
+    """Обрабатывает строку с департаментом 'Принятые' с новыми именами колонок."""
     card_raw = row.get('Card', '')
     card_clean = card_raw.replace('[', '').replace(']', '').replace('(', '').replace(')', '')
-    
-    out_row = {}
-    for in_col, out_col in INPUT_COLUMNS_MAPPING.items():
-        out_row[out_col] = row.get(in_col, '')
-    
-    out_row['card_track_two'] = card_clean
-    out_row['country'] = 'Беларусь (BY)'
-    out_row['nick_name'] = (
-        f"{row.get('Personal number', '')} "
-        f"{row.get('Last name', '')} "
-        f"{row.get('First name', '')} "
-        f"{row.get('Middle name', '')}"
-    )
-    
-    # Удаляем поле 'card', если оно есть
-    out_row.pop('card', None)
-    
+    personal_number = row.get('Personal number', '')
+    out_row = {
+        'matchcode': personal_number,
+        'first_name': row.get('First name', ''),
+        'name': row.get('Last name', ''),
+        'country': 'Беларусь (BY)',
+        'department': row.get('Department', ''),
+        'card_track_two': card_clean,
+        'patronym': row.get('Middle name', ''),
+        'nick_name': f"{personal_number} {row.get('Last name', '')} {row.get('First name', '')} {row.get('Middle name', '')}"
+    }
     writer.writerow(out_row)
 
 def create_output_row(row: Dict, card_track_two: str, personal_number: str) -> Dict:
-    """Создает выходную строку для CSV."""
-    out_row = {}
-    for in_col, out_col in INPUT_COLUMNS_MAPPING.items():
-        out_row[out_col] = row.get(in_col, '')
-    
-    out_row['card_track_two'] = card_track_two
-    out_row['country'] = 'Беларусь (BY)'
-    out_row['nick_name'] = (
-        f"{personal_number} "
-        f"{row.get('Last name', '')} "
-        f"{row.get('First name', '')} "
-        f"{row.get('Middle name', '')}"
-    )
-    
-    # Удаляем поле 'card', если оно есть (оно не входит в OUTPUT_COLUMNS)
-    out_row.pop('card', None)
-    
-    return out_row
+    """Создает выходную строку для CSV с новыми именами колонок."""
+    return {
+        'matchcode': personal_number,
+        'first_name': row.get('First name', ''),
+        'name': row.get('Last name', ''),
+        'country': 'Беларусь (BY)',
+        'department': row.get('Department', ''),
+        'card_track_two': card_track_two,
+        'patronym': row.get('Middle name', ''),
+        'nick_name': f"{personal_number} {row.get('Last name', '')} {row.get('First name', '')} {row.get('Middle name', '')}"
+    }
 
 def save_duplicates(duplicates: Set[Tuple], filename: str):
     """Сохраняет дубликаты в текстовый файл."""
