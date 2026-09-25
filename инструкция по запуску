@@ -1,0 +1,5 @@
+docker build -t employee_web .   собрать образ
+
+
+Запуск
+docker run -d --name employee_web -p 8004:8004 -v .\data:/app/data -v .\archive:/app/archive -v .\logs:/app/logs -v .\instance:/app/instance -v .\network_stub:/app/network_stub -v .\.env:/app/.env:ro -e DATABASE_URL=sqlite:////app/instance/app.db -e FLASK_ENV=production employee_web
