@@ -6,6 +6,7 @@ from app.tasks import start_processing_async, is_running, import_excel_to_db, ex
 from app.config import Config
 from datetime import datetime
 import zipfile
+import re
 import shutil
 import os
 import logging
@@ -166,7 +167,74 @@ def download_archive(filename):
     )
     resp.headers['Cache-Control'] = 'no-store'
     return resp
+@bp.route('/archives')
+@login_required
+def archives():
+    """Список сохранённых архивов из Config.ARCHIVE_DIR."""
+    archive_dir = Config.ARCHIVE_DIR
+    if not os.path.isabs(archive_dir):
+        archive_dir = os.path.abspath(archive_dir)
 
+    items = []
+
+    if os.path.isdir(archive_dir):
+        for name in os.listdir(archive_dir):
+            full = os.path.join(archive_dir, name)
+            if not os.path.isfile(full):
+                continue
+
+            stat = os.stat(full)
+
+            # Извлекаем базовое имя без timestamp: workers_20260925_143022.csv → workers
+            base = name.rsplit('.', 1)[0]
+            parts = base.rsplit('_', 2)   # ['workers', '20260925', '143022']
+            source_name = parts[0] if len(parts) == 3 else base
+
+            # Форматируем дату из имени: 20260925_143022 → 25.09.2026 14:30:22
+            display_date = datetime.fromtimestamp(stat.st_mtime)
+            if len(parts) == 3 and len(parts[1]) == 8 and len(parts[2]) == 6:
+                try:
+                    display_date = datetime.strptime(
+                        parts[1] + parts[2], '%Y%m%d%H%M%S'
+                    )
+                except ValueError:
+                    pass
+
+            items.append({
+                'name': name,
+                'source_name': source_name,
+                'type': os.path.splitext(name)[1].lstrip('.').lower(),
+                'size': stat.st_size,
+                'mtime': display_date,
+            })
+
+    items.sort(key=lambda x: x['mtime'], reverse=True)
+    return render_template('archive.html', items=items, archive_dir=archive_dir)
+
+
+@bp.route('/archives/download/<path:name>')
+@login_required
+def download_archive_item(name):
+    """Скачивание конкретного архива из Config.ARCHIVE_DIR."""
+    if '..' in name or name.startswith('/') or name.startswith('\\'):
+        flash('Недопустимое имя файла.', 'danger')
+        return redirect(url_for('routes.archives'))
+
+    if not re.match(r'^[A-Za-z0-9_\-\.]+$', name):
+        flash('Недопустимое имя файла.', 'danger')
+        return redirect(url_for('routes.archives'))
+
+    archive_dir = Config.ARCHIVE_DIR
+    if not os.path.isabs(archive_dir):
+        archive_dir = os.path.abspath(archive_dir)
+
+    if not os.path.exists(os.path.join(archive_dir, name)):
+        flash(f'Архив не найден: {name}', 'warning')
+        return redirect(url_for('routes.archives'))
+
+    return send_from_directory(archive_dir, name, as_attachment=True)
+
+  
 @bp.route('/upload_excel', methods=['GET', 'POST'])
 @login_required
 def upload_excel():

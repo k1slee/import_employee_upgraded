@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Архивы выгрузок</h1>
+
+<div class="mb-3">
+    <a href="{{ url_for('routes.dashboard') }}" class="btn btn-secondary btn-sm">← Назад к панели</a>
+    <span class="text-muted small ms-2">Папка: {{ archive_dir }}</span>
+</div>
+
+{% if items %}
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Файл</th>
+                <th>Тип</th>
+                <th>Дата архивации</th>
+                <th>Размер</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+            <tr>
+                <td><strong>{{ item.name }}</strong></td>
+                <td><span class="badge bg-secondary">{{ item.type | upper }}</span></td>
+                <td>{{ item.mtime.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                <td>{{ '%.1f'|format(item.size / 1024) }} КБ</td>
+                <td class="text-end">
+                    <a href="{{ url_for('routes.download_archive_item', name=item.name) }}"
+                       class="btn btn-sm btn-success">Скачать</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    Архивов пока нет. Они появятся здесь после первой выгрузки (папка <code>{{ archive_dir }}</code>).
+</div>
+{% endif %}
+{% endblock %}
