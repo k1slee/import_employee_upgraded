@@ -234,7 +234,113 @@ def download_archive_item(name):
 
     return send_from_directory(archive_dir, name, as_attachment=True)
 
-  
+@bp.route('/archives/delete/<path:name>', methods=['POST'])
+@login_required
+def delete_archive_item(name):
+    """Delete one archive file"""
+    if '..' in name or name.startswith('/') or name.startswith('\\'):
+        flash('Недопустимое имя файла', 'danger')
+        return redirect(url_for('routes.archives'))
+
+    if not re.match(r'^[A-Za-z0-9_\-\.]+$', name):
+        flash("Недопустимое имя файла", 'danger')
+        return redirect(url_for('routes.archives'))
+
+    archive_dir = Config.ARCHIVE_DIR
+    if not os.path.isabs(archive_dir):
+        archive_dir = os.path.abspath(archive_dir)
+
+    full = os.path.join(archive_dir, name)
+    if not os.path.isfile(full):
+        flash(f'Архив не найден: {name}', 'warning')
+        return redirect(url_for('routes.archives'))
+
+    try:
+        os.remove(full)
+        logger.info(f"Архив удален: {full}")
+        flash(f'Архив"{name}"удален', 'succes')
+    except Exception as e:
+        logger.error(f"Ошибка удаления архива{name}: {e}", exc_info=True)
+        flash(f'Ошибка удаления{e}', 'danger')
+    return redirect(url_for('routes.archives'))
+
+def _extract_date_from_archive_name(name: str):
+    base = name.rsplit('.', 1)[0]
+
+    m = re.search(r'(\d{4})-(\d{2})-(\d{2})', base)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3))).date()
+        except ValueError:
+            pass
+
+    m = re.search(r'(\d{4})(\d{2})(\d{2})', base)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3))).date()
+        except ValueError:
+            pass
+
+    return None
+
+
+@bp.route('/archives/delete_before', methods=['POST'])
+@login_required
+def delete_archives_before():
+    """ Delete all archives before choices date"""
+    date_str = (request.form.get('before_date') or '').strip()
+    if not date_str:
+        flash('Укажите дату', 'warning')
+        return redirect(url_for('routes.archives'))
+
+    try:
+        cutoff = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Неверный формат даты', 'danger')
+        return redirect(url_for('routes.archives'))
+
+    archive_dir = Config.ARCHIVE_DIR
+    if not os.path.isabs(archive_dir):
+        archive_dir = os.path.abspath(archive_dir)
+
+    if not os.path.isdir(archive_dir):
+        flash('Папка архивов не найдена', 'warning')
+        return redirect(url_for('routes.archives'))
+    deleted = 0
+    skipped = 0
+    errors = 0
+
+    for name in os.listdir(archive_dir):
+        full = os.path.join(archive_dir, name)
+        if not os.path.isfile(full):
+            continue
+
+        file_date = _extract_date_from_archive_name(name)
+
+        if file_date is None:
+            skipped += 1
+            continue
+
+        if file_date < cutoff:
+            try:
+                os.remove(full)
+                deleted += 1
+                logger.info(f'Удален архив до {cutoff} : name')
+            except Exception as e:
+                errors +=1
+                logger.error(f"Не удалось удалить {name}: {e}", exc_info=True)
+
+
+    msg = f'Удалено архивов{deleted}'
+    if skipped:
+        msg += f' skipped: {skipped}'
+    if errors:
+        msg +=f'Errors: {errors}'
+    flash(msg, 'succes' if not errors else 'warning')
+
+    return redirect(url_for('routes.archives'))
+
+
 @bp.route('/upload_excel', methods=['GET', 'POST'])
 @login_required
 def upload_excel():

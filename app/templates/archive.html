@@ -2,10 +2,28 @@
 {% block content %}
 <h1>Архивы выгрузок</h1>
 
-<div class="mb-3">
-    <a href="{{ url_for('routes.dashboard') }}" class="btn btn-secondary btn-sm">← Назад к панели</a>
-    <span class="text-muted small ms-2">Папка: {{ archive_dir }}</span>
+<div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <a href="{{ url_for('routes.dashboard') }}" class="btn btn-secondary btn-sm">← Назад к панели</a>
+        <span class="text-muted small ms-2">Папка: {{ archive_dir }}</span>
+    </div>
+
+    <form method="post" action="{{ url_for('routes.delete_archives_before') }}"
+          class="d-flex align-items-center gap-2"
+          onsubmit="return confirm('Удалить все архивы до указанной даты? Действие необратимо.');">
+        <label for="before_date" class="text-muted small mb-0">Удалить до:</label>
+        <input type="date" id="before_date" name="before_date" class="form-control form-control-sm" required>
+        <button type="submit" class="btn btn-danger btn-sm">Очистить старые</button>
+    </form>
 </div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
 
 {% if items %}
 <div class="table-responsive">
@@ -16,7 +34,7 @@
                 <th>Тип</th>
                 <th>Дата архивации</th>
                 <th>Размер</th>
-                <th></th>
+                <th class="text-end">Действия</th>
             </tr>
         </thead>
         <tbody>
@@ -29,6 +47,13 @@
                 <td class="text-end">
                     <a href="{{ url_for('routes.download_archive_item', name=item.name) }}"
                        class="btn btn-sm btn-success">Скачать</a>
+
+                    <form method="post"
+                          action="{{ url_for('routes.delete_archive_item', name=item.name) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('Удалить архив {{ item.name }}?');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                    </form>
                 </td>
             </tr>
         {% endfor %}
