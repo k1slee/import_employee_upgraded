@@ -10,8 +10,7 @@ class Config:
         raise ValueError("SECRET_KEY не задан в переменных окружения!")
     
     # База данных
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, '..', 'instance', 'app.db')
+    SQLALCHEMY_DATABASE_URI = 'sqlite:////app/instance/app.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # API Guard Plus
