@@ -5,6 +5,8 @@ from app.models import User, Employee
 from app.tasks import start_processing_async, is_running, import_excel_to_db, excel_date_to_datetime, is_worker_active
 from app.config import Config
 from datetime import datetime
+import zipfile
+import shutil
 import os
 import logging
 from app.tasks import get_status
@@ -21,7 +23,6 @@ def load_user(user_id):
 @login_required
 def get_job_status():
     """Возвращает текущий статус выполнения (JSON)."""
-    from flask import jsonify
     return jsonify(get_status())
 
 @bp.route('/current_csv')
@@ -107,21 +108,64 @@ def run_processing():
 @bp.route('/download/<filename>')
 @login_required
 def download_file(filename):
+    """Простое скачивание файла из data/."""
     safe_files = ['workers.json', 'workers.csv', 'accepted.csv', 'duplicates.txt']
     if filename not in safe_files:
         flash('Файл не разрешён для скачивания.', 'danger')
         return redirect(url_for('routes.dashboard'))
-    
-    # Абсолютный путь к папке data
+
     data_dir = os.path.abspath('data')
-    
-    # Проверяем существование файла
-    file_path = os.path.join(data_dir, filename)
-    if not os.path.exists(file_path):
+    source_path = os.path.join(data_dir, filename)
+
+    if not os.path.exists(source_path):
         flash(f'Файл {filename} не найден в {data_dir}', 'warning')
         return redirect(url_for('routes.dashboard'))
-    
+
     return send_from_directory(data_dir, filename, as_attachment=True)
+
+@bp.route('/download_archive/<filename>')
+@login_required
+def download_archive(filename):
+    """Скачивание файла в виде архива с папкой emp_<дата>/."""
+    safe_files = ['workers.csv', 'workers.json', 'accepted.csv', 'duplicates.txt']
+    if filename not in safe_files:
+        flash('Файл не разрешён для скачивания.', 'danger')
+        return redirect(url_for('routes.dashboard'))
+
+    data_dir = os.path.abspath('data')
+    source_path = os.path.join(data_dir, filename)
+
+    if not os.path.exists(source_path):
+        flash(f'Файл {filename} не найден в {data_dir}', 'warning')
+        return redirect(url_for('routes.dashboard'))
+
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    folder_name = f'emp_{date_str}'
+    export_dir = os.path.join(data_dir, folder_name)
+    zip_name = f'{folder_name}.zip'
+    zip_path = os.path.join(data_dir, zip_name)
+
+    try:
+        os.makedirs(export_dir, exist_ok=True)
+        export_path = os.path.join(export_dir, filename)
+        shutil.copy2(source_path, export_path)
+        logger.info(f"{filename} скопирован в {export_path}")
+
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.write(export_path, arcname=f'{folder_name}/{filename}')
+        logger.info(f"Архив создан: {zip_path}")
+    except Exception as e:
+        logger.error(f"Архив: ошибка: {e}", exc_info=True)
+        flash(f'Ошибка подготовки архива: {e}', 'danger')
+        return redirect(url_for('routes.dashboard'))
+
+    resp = send_from_directory(
+        data_dir, zip_name,
+        as_attachment=True,
+        download_name=zip_name
+    )
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @bp.route('/upload_excel', methods=['GET', 'POST'])
 @login_required
@@ -136,7 +180,6 @@ def upload_excel():
         temp_path = os.path.join('data', 'temp_upload.xlsx')
         file.save(temp_path)
         # Запускаем импорт (может быть долгим, делаем в фоне или синхронно)
-        from app.tasks import import_excel_to_db
         try:
             import_excel_to_db(temp_path)
             flash('Данные успешно обновлены.', 'success')

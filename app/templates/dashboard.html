@@ -74,6 +74,7 @@
                 <h5 class="card-title">Результаты</h5>
                 <a href="{{ url_for('routes.download_file', filename='workers.json') }}" class="btn btn-success btn-sm">Скачать JSON</a>
                 <a href="{{ url_for('routes.download_file', filename='workers.csv') }}" class="btn btn-success btn-sm">Скачать CSV</a>
+                <a href="{{ url_for('routes.download_archive', filename='workers.csv') }}" class="btn btn-primary btn-sm">Скачать архив</a>
                 <a href="{{ url_for('routes.download_file', filename='accepted.csv') }}" class="btn btn-secondary btn-sm">Принятые</a>
                 <hr>
                 <a href="{{ url_for('routes.employees') }}" class="btn btn-info btn-sm">Управление сотрудниками</a>
