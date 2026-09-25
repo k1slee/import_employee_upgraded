@@ -82,23 +82,43 @@
     </div>
 </div>
 
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="card-title mb-0">Текущий файл workers.csv</h5>
+                    <input type="text" id="csv-search" class="form-control form-control-sm"
+                        placeholder="Поиск..." style="max-width: 250px;">
+                </div>
+                <div class="table-responsive" style = "max-height: 500px; overflow: auto;">
+                    <table class="table table-sm table-striped table-bordered" id="csv-table">
+                        <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                            <tr id="csv-header"></tr>
+                        </thead>
+                        <tbody id="csv-body"></tbody>
+                    </table>
+                </div>
+                <div class="text-muted small mt-1" id="csv-info">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
+// ---------- Статус обработки ----------
 function updateStatus() {
-    fetch('/status')
+    fetch('{{ url_for("routes.get_job_status") }}')
         .then(response => response.json())
         .then(data => {
-            // Основная информация
             document.getElementById('status-step').textContent = data.step_name || 'Ожидание';
             document.getElementById('status-message').textContent = data.message || 'Готов к работе';
-            
-            // Прогресс-бар
+
             const progress = data.progress || 0;
             const progressBar = document.getElementById('status-progress');
             progressBar.style.width = progress + '%';
             progressBar.textContent = progress + '%';
             progressBar.setAttribute('aria-valuenow', progress);
-            
-            // Цвет статуса
+
             const stepElement = document.getElementById('status-step');
             if (data.current_step === 'done') {
                 stepElement.style.color = 'green';
@@ -113,21 +133,90 @@ function updateStatus() {
                 stepElement.style.color = '#0d6efd';
                 progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
             }
-            
-            // Время
+
             if (data.last_updated) {
                 const date = new Date(data.last_updated);
-                document.getElementById('status-time').textContent = '🕐 Обновлено: ' + date.toLocaleTimeString();
+                document.getElementById('status-time').textContent =
+                    '🕐 Обновлено: ' + date.toLocaleTimeString();
             }
         })
-        .catch(error => {
-            console.error('Ошибка получения статуса:', error);
-        });
+        .catch(error => console.error('Ошибка получения статуса:', error));
 }
 
-// Обновляем статус каждые 2 секунды
+// ---------- Таблица workers.csv ----------
+let csvAllRows = [];
+let csvHeaders = [];
+let csvLastModified = '';
+
+function renderCsvRows(rows) {
+    const tbody = document.getElementById('csv-body');
+    const fragment = document.createDocumentFragment();
+
+    for (const row of rows) {
+        const tr = document.createElement('tr');
+        for (const h of csvHeaders) {
+            const td = document.createElement('td');
+            td.textContent = row[h] != null ? row[h] : '';
+            tr.appendChild(td);
+        }
+        fragment.appendChild(tr);
+    }
+
+    tbody.replaceChildren(fragment);
+}
+
+function applyCsvFilter() {
+    const q = document.getElementById('csv-search').value.trim().toLowerCase();
+    let filtered = csvAllRows;
+    if (q) {
+        filtered = csvAllRows.filter(row =>
+            csvHeaders.some(h =>
+                String(row[h] != null ? row[h] : '').toLowerCase().includes(q)
+            )
+        );
+    }
+    renderCsvRows(filtered);
+
+    document.getElementById('csv-info').textContent =
+        `Показано: ${filtered.length} из ${csvAllRows.length}` +
+        (csvLastModified ? `. Обновлено: ${csvLastModified}` : '');
+}
+
+function updateCsv() {
+    fetch('{{ url_for("routes.current_csv") }}')
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('csv-info').textContent =
+                    'Ошибка: ' + data.error;
+                return;
+            }
+
+            csvHeaders = data.headers || [];
+            csvAllRows = data.rows || [];
+            csvLastModified = data.last_modified
+                ? new Date(data.last_modified * 1000).toLocaleString()
+                : '';
+
+            const headerRow = document.getElementById('csv-header');
+            const headerFragment = document.createDocumentFragment();
+            for (const h of csvHeaders) {
+                const th = document.createElement('th');
+                th.textContent = h;
+                headerFragment.appendChild(th);
+            }
+            headerRow.replaceChildren(headerFragment);
+
+            applyCsvFilter();
+        })
+        .catch(err => console.error('Ошибка загрузки CSV:', err));
+}
+
+// Инициализация
+document.getElementById('csv-search').addEventListener('input', applyCsvFilter);
 setInterval(updateStatus, 2000);
-// Первое обновление сразу
+setInterval(updateCsv, 5000);
 updateStatus();
+updateCsv();
 </script>
 {% endblock %}

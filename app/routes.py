@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_from_directory, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, login_manager
 from app.models import User, Employee
@@ -8,6 +8,7 @@ from datetime import datetime
 import os
 import logging
 from app.tasks import get_status
+import csv 
 
 bp = Blueprint('routes', __name__)
 logger = logging.getLogger(__name__)
@@ -22,6 +23,40 @@ def get_job_status():
     """Возвращает текущий статус выполнения (JSON)."""
     from flask import jsonify
     return jsonify(get_status())
+
+@bp.route('/current_csv')
+@login_required
+def current_csv():
+    '''Отдаем workers.csv как JSON'''
+    filepath = Config.OUTPUT_CSV
+
+    if not os.path.isabs(filepath):
+        candidate = os.path.join(os.path.abspath('data'), os.path.basename(filepath))
+        if os.path.exists(candidate):
+            filepath = candidate
+
+    if not os.path.exists(filepath):
+        return jsonify({
+            'headers': [],
+            'rows': [],
+            'count': 0,
+            'error': f'Файл не найден {filepath}'
+        })
+    try:
+        with open(filepath, 'r', encoding = 'cp1251', newline = '') as f:
+            reader = csv.DictReader(f, delimiter = ";")
+            headers = reader.fieldnames or []
+            rows = [row for row in reader]
+        
+        return jsonify({
+            'headers': headers,
+            'rows': rows,
+            'count': len(rows),
+            'last_modified' : os.path.getmtime(filepath)
+        })
+    except Exception as e:
+        logger.error(f"Ошибка чтения workers.csv: {e}", exc_info = True)
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/')
 @login_required
