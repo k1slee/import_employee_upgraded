@@ -26,8 +26,8 @@ OUTPUT_COLUMNS = [
     'patronym',
     'nick_name'
 ]
-
-EXCLUDED_DEPARTMENTS = ['Уволенные', 'Заблокированные']
+SKIPPED_FILE = 'data/skipped_from_workers.json'
+EXCLUDED_DEPARTMENTS = ['Уволенные', 'Заблокированные', 'Дом культуры', 'Общежитие']
 SPECIAL_DEPARTMENT = 'Принятые'
 INVALID_PERSONAL_NUMBERS = ['0000', '00000']
 
@@ -67,41 +67,44 @@ def process_card_number(card_raw: str) -> Tuple[str, str]:
     
     return card_track_one, card_track_two
 
-def should_skip_row(row: Dict, active_names: Set[str]) -> bool:
+def should_skip_row(row: Dict, active_names: Set[str]) -> Tuple[bool, str]:
     """
-    Определяет, нужно ли пропустить строку.
+    Определяет, нужно ли пропустить строку. Возвращает (skip, reason)
+   
     """
+
     personal_number = row.get('Personal number', '').strip()
     department = row.get('Department', '').strip()
     card_clean = row.get('Card', '').replace('[', '').replace(']', '').replace('(', '').replace(')', '')
-    
-    # Формируем ФИО для проверки
+
     fio = (
         row.get('Last name', '').strip(),
         row.get('First name', '').strip(),
         row.get('Middle name', '').strip(),
     )
+
     fio_str = ' '.join(fio).strip()
     fio_norm = normalize_name(fio_str)
-    
-    # Специальная обработка для департамента "Принятые"
+
     if department == SPECIAL_DEPARTMENT:
-        return False  # Не пропускаем, обрабатывается отдельно
-    
-    # Проверка на активность
+        return False, ''
+
     if fio_norm not in active_names:
-        logger.info(f"Пропущен (неактивен): {fio_str} / Личный № {personal_number}")
-        return True
-    
-    # Общие условия пропуска
-    conditions = [
-        not card_clean.strip(),
-        department in EXCLUDED_DEPARTMENTS,
-        (card_clean.strip() and not personal_number),
-        personal_number in INVALID_PERSONAL_NUMBERS
-    ]
-    
-    return any(conditions)
+        return True, 'Нет в списке активных сотрудников БД'
+
+    if not card_clean.strip():
+        return True, 'Нет номера карты'
+
+    if department in EXCLUDED_DEPARTMENTS:
+        return True, f' Отдел в исключениях {department}'
+
+    if card_clean.strip() and not personal_number:
+        return True, 'Есть карта но нет табельного номера'
+
+    if personal_number in INVALID_PERSONAL_NUMBERS:
+        return True, f'Невалидный табельный номер{personal_number}'
+
+    return False, ''
 
 def process_workers_data(
     input_file: str,
@@ -131,7 +134,8 @@ def process_workers_data(
         
         writer.writeheader()
         accepted_writer.writeheader()
-        
+
+        skipped_rows = []
         for row in reader:
             department = row.get('Department', '').strip()
             personal_number = row.get('Personal number', '').strip()
@@ -142,7 +146,19 @@ def process_workers_data(
                 continue
             
             # Проверка на пропуск
-            if should_skip_row(row, active_names):
+            should_skip, reason = should_skip_row(row, active_names)
+            if should_skip:
+                fio_str = ' '.join([
+                    row.get('Last name', '').strip(),
+                    row.get('First name', '').strip(),
+                    row.get('Middle name', '').strip(),
+                ]).strip()
+                skipped_rows.append({
+                    'personal_number': personal_number,
+                    'full_name': fio_str,
+                    'department': department,
+                    'reason': reason,
+                })
                 continue
             
             # Обработка карты
@@ -179,6 +195,9 @@ def process_workers_data(
     
     # Сохраняем JSON
     save_json(json_dict, json_file)
+
+    # Сохраняем Skipped
+    save_skipped(skipped_rows, SKIPPED_FILE)
     
     logger.info(f"CSV файл записан: {output_file}")
     logger.info(f"JSON файл создан: {json_file}")
@@ -223,6 +242,10 @@ def save_duplicates(duplicates: Set[Tuple], filename: str):
             dfile.write(' '.join(fio) + '\n')
     logger.info(f"Дубликаты сохранены в {filename}")
 
+def save_skipped(skipped: List[Dict], filename: str):
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(skipped, f, ensure_ascii=False, indent=2)
+    logger.info(f"Список пропущенных сохранен: {filename} ({len(skipped)}) записей")
 def save_json(data: Dict, filename: str):
     """Сохраняет данные в JSON файл."""
     with open(filename, 'w', encoding='utf-8') as jf:

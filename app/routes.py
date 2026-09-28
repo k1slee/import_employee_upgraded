@@ -12,6 +12,7 @@ import os
 import logging
 from app.tasks import get_status
 import csv 
+import json
 
 bp = Blueprint('routes', __name__)
 logger = logging.getLogger(__name__)
@@ -555,4 +556,29 @@ def step3():
         flash('Шаг 3 (финализация) запущен.', 'success')
     return redirect(url_for('routes.dashboard'))
 
-# Старый маршрут /run оставляем для полного цикла
+@bp.route('/skipped')
+@login_required
+def skipped():
+    """List of members dsnt included in workers.csv"""
+    path = os.path.join(os.path.abspath('data'), 'skipped_from_workers.json')
+    if not os.path.exists(path):
+        return jsonify({'count': 0, 'items': []})
+
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            items = json.load(f)
+        return jsonify({'count' : len(items), 'items' : items})
+    except Exception as e:
+        logger.error(f"Ошибка чтения skipped_from_workers.json: {e}", exc_info=True)
+
+        return jsonify({'count': 0, 'items': [], 'error': str(e)})
+
+@bp.route('/download_skipped')
+@login_required
+def download_skipped():
+    data_dir = os.path.abspath('data')
+    filename = 'skipped_from_workers.json'
+    if not os.path.exists(os.path.join(data_dir, filename)):
+        flash('Отчет еще не создан. Запустите обработку', 'warning')
+        return redirect(url_for('routes.dashboard'))
+    return send_from_directory(data_dir, filename, as_attachment = True)
