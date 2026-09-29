@@ -96,15 +96,20 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                     <h5 class="card-title mb-0">
-                        Не попали в workers.csv: <span id="skipped-count">0</span>
+                        ⚠️ Не попали в workers.csv: <span id="skipped-count">0</span>
                     </h5>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#skipped-details" aria-expanded="false" aria-controls="skipped-details">
-                            Показать \ скрыть
+                    <div class="d-flex gap-2">
+                        <select id="skipped-reason-filter" class="form-select form-select-sm" style="min-width: 250px;">
+                            <option value="">Все причины</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-secondary" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#skipped-details"
+                                aria-expanded="false" aria-controls="skipped-details">
+                            Показать / скрыть
                         </button>
                         <a href="{{ url_for('routes.download_skipped') }}"
-                            class="btn btn-sm btn-outline-primary">
-                            Скачать отчет
+                        class="btn btn-sm btn-outline-primary">
+                            Скачать отчёт
                         </a>
                     </div>
                 </div>
@@ -260,6 +265,65 @@ function updateCsv() {
 }
 // Пропущенные сотрудники
 // ---------- Пропущенные сотрудники ----------
+let skippedAll = [];          // все записи с сервера
+let skippedFilterInitialized = false;
+
+function renderSkippedRows(items) {
+    const tbody = document.getElementById('skipped-body');
+    const frag = document.createDocumentFragment();
+
+    for (const item of items) {
+        const tr = document.createElement('tr');
+        for (const key of ['personal_number', 'full_name', 'department', 'reason']) {
+            const td = document.createElement('td');
+            td.textContent = item[key] || '';
+            tr.appendChild(td);
+        }
+        frag.appendChild(tr);
+    }
+    tbody.replaceChildren(frag);
+}
+
+function applySkippedFilter() {
+    const reason = document.getElementById('skipped-reason-filter').value;
+    const filtered = reason
+        ? skippedAll.filter(item => item.reason === reason)
+        : skippedAll;
+
+    renderSkippedRows(filtered);
+
+    const countEl = document.getElementById('skipped-count');
+    const total = skippedAll.length;
+    if (reason) {
+        countEl.textContent = `${filtered.length} из ${total} (${reason})`;
+    } else {
+        countEl.textContent = total;
+    }
+}
+
+function fillReasonOptions(reasons) {
+    const select = document.getElementById('skipped-reason-filter');
+    if (!select) return;
+
+    const current = select.value;
+    // Оставляем только первый option (Все причины), остальные удаляем
+    select.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
+
+    for (const r of reasons) {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        select.appendChild(opt);
+    }
+
+    // Восстанавливаем выбор, если он ещё доступен
+    if (current && reasons.includes(current)) {
+        select.value = current;
+    } else {
+        select.value = '';
+    }
+}
+
 function updateSkipped() {
     fetch('{{ url_for("routes.skipped") }}')
         .then(r => r.json())
@@ -269,27 +333,39 @@ function updateSkipped() {
 
             if (count === 0) {
                 block.style.display = 'none';
+                skippedAll = [];
                 return;
             }
 
             block.style.display = 'block';
-            document.getElementById('skipped-count').textContent = count;
+            skippedAll = data.items || [];
 
-            const tbody = document.getElementById('skipped-body');
-            const frag = document.createDocumentFragment();
-            for (const item of data.items || []) {
-                const tr = document.createElement('tr');
-                for (const key of ['personal_number', 'full_name', 'department', 'reason']) {
-                    const td = document.createElement('td');
-                    td.textContent = item[key] || '';
-                    tr.appendChild(td);
-                }
-                frag.appendChild(tr);
+            // Уникальные причины — один раз (или если причины изменились)
+            const reasons = [...new Set(skippedAll.map(i => i.reason))].sort();
+            const select = document.getElementById('skipped-reason-filter');
+            const existing = [...select.options].slice(1).map(o => o.value);
+            const needRefresh = reasons.length !== existing.length
+                || reasons.some((r, idx) => r !== existing[idx]);
+
+            if (needRefresh) {
+                fillReasonOptions(reasons);
             }
-            tbody.replaceChildren(frag);
+
+            applySkippedFilter();
         })
         .catch(err => console.error('Ошибка загрузки skipped:', err));
 }
+
+// Навешиваем обработчик один раз
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('skipped-reason-filter');
+    if (select) {
+        select.addEventListener('change', applySkippedFilter);
+    }
+});
+
+setInterval(updateSkipped, 5000);
+updateSkipped();
 
 setInterval(updateSkipped, 5000);
 updateSkipped();
