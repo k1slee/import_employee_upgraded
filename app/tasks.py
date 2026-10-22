@@ -12,7 +12,7 @@ from downloader import download_workers_data
 from csv_processor import process_workers_data
 from validator import archive_files
 from app.utils import copy_to_network
-
+from app.workers_export import export_workers_json
 logger = logging.getLogger(__name__)
 
 # Глобальный флаг для отслеживания выполнения
@@ -40,7 +40,7 @@ def run_processing():
         # 2. Активные сотрудники из БД
         active_employees = get_active_employees_from_db()
         # 3. Обработка CSV
-        json_data = process_workers_data(
+        json_data = _process_and_export_by_card(
             input_file=Config.INPUT_CSV,
             output_file=Config.OUTPUT_CSV,
             json_file=Config.OUTPUT_JSON,
@@ -132,7 +132,12 @@ def import_excel_to_db(excel_path):
         db.session.commit()
         logger.info(f"Импортировано {count} сотрудников в БД.")
         return count
-
+def _process_and_export_by_card(**kwargs):
+    """Обертка которая пишент только новый файл 
+    workers_by_card.json. , старый Config.OUTPUT_JSON не трогает"""
+    data = process_workers_data(**kwargs)
+    export_workers_json(Config.OUTPUT_CSV, Config.OUTPUT_JSON_BY_CARD)
+    return data 
 # ---------- Проверка с БД ----------
 def check_with_db(json_path: str):
     """
@@ -242,7 +247,7 @@ def step2_process():
         if not os.path.exists(Config.INPUT_CSV):
             raise FileNotFoundError(f"Исходный CSV не найден: {Config.INPUT_CSV}.")
         update_status('processing', 'Обработка данных', 40, 'Фильтрация и преобразование данных...')
-        json_data = process_workers_data(
+        json_data = _process_and_export_by_card(
             input_file=Config.INPUT_CSV,
             output_file=Config.OUTPUT_CSV,
             json_file=Config.OUTPUT_JSON,
@@ -292,7 +297,7 @@ def run_processing_all():
             if not os.path.exists(Config.INPUT_CSV):
                 raise FileNotFoundError(f"Исходный CSV не найден: {Config.INPUT_CSV}.")
             update_status('processing', 'Шаг 2/3: Обработка данных', 40, 'Фильтрация и преобразование данных...')
-            json_data = process_workers_data(
+            json_data = _process_and_export_by_card(
                 input_file=Config.INPUT_CSV,
                 output_file=Config.OUTPUT_CSV,
                 json_file=Config.OUTPUT_JSON,

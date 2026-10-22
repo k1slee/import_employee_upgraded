@@ -583,18 +583,17 @@ def download_skipped():
         return redirect(url_for('routes.dashboard'))
     return send_from_directory(data_dir, filename, as_attachment = True)
 
-@bp.route('/workers.json')
+@bp.route('/workers_by_card.json')
 @login_required
-def workers_json():
-    """Отдает workers.json для проверки баланса """
-    stub_dir = os.path.abspath('network_stub')
-    filename = 'workers.json'
-    path = os.path.join(stub_dir, filename)
+def workers_by_card_json():
+    data_dir = os.path.abspath('data')
+    filename = 'workers_by_card.json'
+    path = os.path.join(data_dir, filename)
 
     if not os.path.isfile(path):
-        logger.warning(f"workers.json не найден: {path}")
-        return jsonify({'error': 'workers.json не найден '}), 404
+        logger.warning(f"workers_by_card.json не найден: {path}")
+        return jsonify({'error': 'workers_by_card.json not found'}), 404
 
-    resp = send_from_directory(stub_dir, filename, mimetype = 'application/json')
+    resp = send_from_directory(data_dir, filename, mimetype='application/json')
     resp.headers['Cache-Control'] = 'no-store'
     return resp
