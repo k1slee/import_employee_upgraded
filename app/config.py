@@ -36,7 +36,14 @@ class Config:
     ACCEPTED_CSV = os.environ.get('ACCEPTED_CSV', 'data/accepted.csv')
     DUPLICATES_FILE = os.environ.get('DUPLICATES_FILE', 'data/duplicates.txt')
     EXCEL_FILE = os.environ.get('EXCEL_FILE', 'pass.xlsx')
-    
+    OUTPUT_JSON_BY_CARD = os.environ.get('OUTPUT_JSON_BY_CARD', 'data/workers_by_card.json')
     # Сеть
     NETWORK_PATH = os.environ.get('NETWORK_PATH', r'\\kiosk\Терминал 2022\card_reader\workers.json')
     ARCHIVE_DIR = os.environ.get('ARCHIVE_DIR', 'archive/')
+
+    #Формирование json файла
+    WORKERS_CARD_COL  = os.environ.get('WORKERS_CARD_COL',  'card_track_two')
+    WORKERS_TAB_COL   = os.environ.get('WORKERS_TAB_COL',   'matchcode')
+    WORKERS_NAME_COL  = os.environ.get('WORKERS_NAME_COL',  'name')
+    WORKERS_FIRST_COL = os.environ.get('WORKERS_FIRST_COL', 'first_name')
+    WORKERS_PATR_COL  = os.environ.get('WORKERS_PATR_COL',  'patronym')
