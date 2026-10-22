@@ -1,8 +1,11 @@
 import csv
 import json
 import os
+import logging
 from app.config import Config
 
+
+logger = logging.getLogger(__name__)
 def _col(name, default):
     return getattr(Config, name, None) or default
 
@@ -32,3 +35,17 @@ def build_workers_dict(csv_path, encoding='cp1251'):
                 'card_number': card,
             }
         return result 
+
+def export_workers_json(csv_path, json_path, encoding='cp1251'):
+    """Собирает json """
+    data = build_workers_dict(csv_path, encoding=encoding)
+
+    dirname = os.path.dirname(json_path)
+
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
+
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent= 2)
+    logger.info(f"workers_by_card.json: {len(data)} Записей {json_path}")
+    return data
