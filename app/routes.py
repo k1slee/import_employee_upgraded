@@ -582,3 +582,19 @@ def download_skipped():
         flash('Отчет еще не создан. Запустите обработку', 'warning')
         return redirect(url_for('routes.dashboard'))
     return send_from_directory(data_dir, filename, as_attachment = True)
+
+@bp.route('/workers.json')
+@login_required
+def workers_json():
+    """Отдает workers.json для проверки баланса """
+    stub_dir = os.path.abspath('network_stub')
+    filename = 'workers.json'
+    path = os.path.join(stub_dir, filename)
+
+    if not os.path.isfile(path):
+        logger.warning(f"workers.json не найден: {path}")
+        return jsonify({'error': 'workers.json не найден '}), 404
+
+    resp = send_from_directory(stub_dir, filename, mimetype = 'application/json')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
