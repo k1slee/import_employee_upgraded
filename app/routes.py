@@ -600,3 +600,16 @@ def workers_by_card_json():
     resp = send_from_directory(data_dir, filename, mimetype='application/json')
     resp.headers['Cache-Control'] = 'no-store'
     return resp
+
+@bp.route('/workers.json')
+def workers_json_token():
+    if not WORKERS_TOKEN or request.headers.get('X-Token') != WORKERS_TOKEN:
+        return jsonify({'error': 'unauthorized'}), 401
+    data_dir = os.path.abspath('data')
+    filename = 'workers.json'
+    path = os.path.join(data_dir, filename)
+    if not os.path.isfile(path):
+        return jsonify({'error': 'workers.json not found'}), 404
+    resp = send_from_directory(data_dir, filename, mimetype='application/json')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
