@@ -583,9 +583,12 @@ def download_skipped():
         return redirect(url_for('routes.dashboard'))
     return send_from_directory(data_dir, filename, as_attachment = True)
 
+WORKERS_TOKEN = os.environ.get('WORKERS_TOKEN','')
+
 @bp.route('/workers_by_card.json')
-@login_required
 def workers_by_card_json():
+    if not WORKERS_TOKEN or request.headers.get('X-token') != WORKERS_TOKEN:
+        return jsonify({'error': 'unauthorized'}), 401
     data_dir = os.path.abspath('data')
     filename = 'workers_by_card.json'
     path = os.path.join(data_dir, filename)
